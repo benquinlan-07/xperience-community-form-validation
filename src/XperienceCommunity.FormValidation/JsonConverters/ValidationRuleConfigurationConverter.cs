@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using CMS.Core;
 using Kentico.Forms.Web.Mvc;
 using XperienceCommunity.FormValidation.Components.ValidationRuleList;
 using XperienceCommunity.FormValidation.Extensions;
@@ -18,6 +19,11 @@ internal sealed class ValidationRuleConfigurationConverter :
     private readonly string IdentifierPropertyName = ValidationRuleConfigurationConverter.GetPropertyName("Identifier");
     private readonly string ValidationRuleIdentifierPropertyName = ValidationRuleConfigurationConverter.GetPropertyName("ValidationRuleIdentifier");
     private readonly string RuleValuesPropertyName = ValidationRuleConfigurationConverter.GetPropertyName("RuleValues");
+
+    public ValidationRuleConfigurationConverter()
+	    : this(Service.Resolve<IValidationRuleDefinitionProvider>())
+    {
+    }
 
     public ValidationRuleConfigurationConverter(IValidationRuleDefinitionProvider validationRuleDefinitionProvider)
     {
