@@ -34,18 +34,21 @@ public class CustomPageExtender : PageExtender<FormBuilderTab>
 	private readonly IFormItemCollectionProvider _formItemCollectionProvider;
     private readonly IValidationRuleDefinitionProvider _validationRuleDefinitionProvider;
     private readonly IInfoProvider<FormFieldValidationInfo> _formFieldValidationInfoProvider;
+    private readonly IFormComponentDefinitionProvider _formComponentDefinitionProvider;
 
     private readonly JsonSerializerOptions _validationRulesSerializerOptions;
 
     public CustomPageExtender(ILocalizationService localizationService, 
         IFormItemCollectionProvider formItemCollectionProvider,
         IValidationRuleDefinitionProvider validationRuleDefinitionProvider,
-        IInfoProvider<FormFieldValidationInfo> formFieldValidationInfoProvider)
+        IInfoProvider<FormFieldValidationInfo> formFieldValidationInfoProvider,
+        IFormComponentDefinitionProvider formComponentDefinitionProvider)
 	{
 		_localizationService = localizationService;
 		_formItemCollectionProvider = formItemCollectionProvider;
         _validationRuleDefinitionProvider = validationRuleDefinitionProvider;
         _formFieldValidationInfoProvider = formFieldValidationInfoProvider;
+        _formComponentDefinitionProvider = formComponentDefinitionProvider;
         CommandExecute.After += CommandExecute_After;
         _validationRulesSerializerOptions = new JsonSerializerOptions() { Converters = { new ValidationRuleConfigurationConverter(_validationRuleDefinitionProvider) } };
 
@@ -85,7 +88,7 @@ public class CustomPageExtender : PageExtender<FormBuilderTab>
     [PageCommand(Permission = "Update")]
 	public async Task<ICommandResponse> CreateValidationRule(CreateValidationRuleArgs args)
     {
-		var validationRule = _validationRuleDefinitionProvider.Get(args.Identifier);
+        var validationRule = _validationRuleDefinitionProvider.Get(args.Identifier);
 		var validationRuleInstance = (ValidationRule)Activator.CreateInstance(validationRule.ValidationRuleType);
 		foreach (var key in args.FormData.Keys)
 		{
@@ -149,10 +152,14 @@ public class CustomPageExtender : PageExtender<FormBuilderTab>
         };
         formFields.Add(requiredErrorField);
 
-        var validationField = GetValidationElement(fieldName, typeof(string), validationRules).Result;
-        validationField.Name = ValidationRulesPropertyName;
-        validationField.Label = "Validation rules";
-        formFields.Add(validationField);
+        var formComponentDefinition = _formComponentDefinitionProvider.Get(parameters.TypeIdentifier);
+        if (formComponentDefinition != null)
+        {
+            var validationField = GetValidationElement(fieldName, formComponentDefinition.ValueType, validationRules).Result;
+            validationField.Name = ValidationRulesPropertyName;
+            validationField.Label = "Validation rules";
+            formFields.Add(validationField);
+        }
 
 		pageCommandEventArgs.CommandResponse = new CommandResponse<IEnumerable<IFormItemClientProperties>>(formFields);
     }
