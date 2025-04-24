@@ -137,6 +137,9 @@ public class CustomPageExtender : PageExtender<FormBuilderTab>
         if (validationRules == null)
             validationRules = [];
 
+        // Ensure we were able to parse all the rules
+        validationRules = validationRules.Where(x => x.RuleValues != null).ToArray();
+
         var formFields = response.Result.ToList();
 		formFields.Add(new FormCategoryClientProperties() { Title = "Validation", ComponentName = "@kentico/xperience-admin-base/CollapsibleLabelCategory" });
 

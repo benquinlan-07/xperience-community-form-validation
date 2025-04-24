@@ -19,12 +19,15 @@ namespace XperienceCommunity.FormValidation
     {
         private readonly IFormComponentValidator _kenticoFormComponentValidator;
         private readonly IInfoProvider<FormFieldValidationInfo> _formFieldValidationInfoProvider;
+        private readonly IEventLogService _eventLogService;
 
         public CustomFormComponentValidator([FromKeyedServices("kentico")] IFormComponentValidator kenticoFormComponentValidator,
-            IInfoProvider<FormFieldValidationInfo> formFieldValidationInfoProvider)
+            IInfoProvider<FormFieldValidationInfo> formFieldValidationInfoProvider,
+            IEventLogService eventLogService)
         {
             _kenticoFormComponentValidator = kenticoFormComponentValidator;
             _formFieldValidationInfoProvider = formFieldValidationInfoProvider;
+            _eventLogService = eventLogService;
         }
 
         public IEnumerable<string> ValidateComponentValue(FormComponent component)
@@ -43,15 +46,25 @@ namespace XperienceCommunity.FormValidation
                 validationErrors.Add(formFieldValidationInfo.FormFieldValidationRequiredError);
             }
 
-            var validationRules = ParseValidationRules(formFieldValidationInfo);
-
-            var value = component.GetObjectValue();
-            foreach (var config in validationRules)
+            try
             {
-                if (!config.RuleValues.IsValueValid(value))
+                var validationRules = ParseValidationRules(formFieldValidationInfo);
+
+                var value = component.GetObjectValue();
+                if (value != null)
                 {
-                    validationErrors.Add(config.RuleValues.ErrorMessage);
+                    foreach (var config in validationRules)
+                    {
+                        if (!config.RuleValues.IsValueValid(value))
+                        {
+                            validationErrors.Add(config.RuleValues.ErrorMessage);
+                        }
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                _eventLogService.LogException("FormValidation", "ValidateComponentValue", ex, $"Error while attempting to process validation rules for field '{component.Name}'");
             }
 
             return validationErrors;
@@ -74,33 +87,40 @@ namespace XperienceCommunity.FormValidation
             if (formFieldValidationInfo == null)
                 return validationErrors;
 
-            var validationRules = ParseValidationRules(formFieldValidationInfo);
-
-            foreach (var validationRule in validationRules.Select(x => x.RuleValues).Where((rule => rule.GetType().FindTypeByGenericDefinition(typeof(CompareToFieldValidationRule<>)) != null)))
+            try
             {
-                var dependeeFieldGuidProperty = validationRule.GetType().GetProperty("DependeeFieldGuid");
-                var setDependeeFieldValueMethod = validationRule.GetType().GetMethod("SetDependeeFieldValue");
+                var validationRules = ParseValidationRules(formFieldValidationInfo);
 
-                if (dependeeFieldGuidProperty == null || setDependeeFieldValueMethod == null)
-                    continue;
-
-                var objectValue1 = component.GetObjectValue();
-                var formComponent = allComponents.Find((c => c.BaseProperties.Guid.Equals(dependeeFieldGuidProperty.GetValue(validationRule))));
-                if (formComponent == null)
-                    throw new InvalidOperationException($"Form '{formName}' contains component '{component.Name}' having validation rule '{validationRule.Title}' depending on missing field.");
-                
-                var fieldRule = ResHelper.LocalizeString(validationRule.ErrorMessage);
-                var objectValue2 = formComponent.GetObjectValue();
-                if (objectValue2 != null)
+                foreach (var validationRule in validationRules.Select(x => x.RuleValues).Where((rule => rule.GetType().FindTypeByGenericDefinition(typeof(CompareToFieldValidationRule<>)) != null)))
                 {
-                    setDependeeFieldValueMethod.Invoke(validationRule, new [] { objectValue2 });
-                    if (!validationRule.IsValueValid(objectValue1))
+                    var dependeeFieldGuidProperty = validationRule.GetType().GetProperty("DependeeFieldGuid");
+                    var setDependeeFieldValueMethod = validationRule.GetType().GetMethod("SetDependeeFieldValue");
+
+                    if (dependeeFieldGuidProperty == null || setDependeeFieldValueMethod == null)
+                        continue;
+
+                    var objectValue1 = component.GetObjectValue();
+                    var formComponent = allComponents.Find((c => c.BaseProperties.Guid.Equals(dependeeFieldGuidProperty.GetValue(validationRule))));
+                    if (formComponent == null)
+                        throw new InvalidOperationException($"Form '{formName}' contains component '{component.Name}' having validation rule '{validationRule.Title}' depending on missing field.");
+
+                    var fieldRule = ResHelper.LocalizeString(validationRule.ErrorMessage);
+                    var objectValue2 = formComponent.GetObjectValue();
+                    if (objectValue2 != null)
+                    {
+                        setDependeeFieldValueMethod.Invoke(validationRule, new[] { objectValue2 });
+                        if (!validationRule.IsValueValid(objectValue1))
+                            validationErrors.Add(fieldRule);
+                    }
+                    else
+                    {
                         validationErrors.Add(fieldRule);
+                    }
                 }
-                else
-                {
-                    validationErrors.Add(fieldRule);
-                }
+            }
+            catch (Exception ex)
+            {
+                _eventLogService.LogException("FormValidation", "ValidateCompareToFieldRules", ex, $"Error while attempting to process validation rules for field '{component.Name}'");
             }
 
             return validationErrors;

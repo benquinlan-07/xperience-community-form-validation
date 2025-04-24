@@ -57,7 +57,7 @@ namespace XperienceCommunity.FormValidation
             {
                 var validationRuleDefinitionProvider = Service.Resolve<IValidationRuleDefinitionProvider>();
                 var validationRules = JsonSerializer.Deserialize<CustomValidationRuleConfiguration[]>(formFieldValidation.FormFieldValidationRules, new JsonSerializerOptions() { Converters = { new ValidationRuleConfigurationConverter(validationRuleDefinitionProvider) } });
-                foreach (var config in validationRules)
+                foreach (var config in validationRules.Where(x => x.RuleValues != null))
                 {
                     ApplyValidationRuleAttribute(config.RuleValues, e.Configuration.EditorHtmlAttributes);
                 }

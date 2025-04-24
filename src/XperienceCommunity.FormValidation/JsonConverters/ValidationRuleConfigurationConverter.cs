@@ -60,12 +60,15 @@ internal sealed class ValidationRuleConfigurationConverter :
             else if (str.Equals(this.RuleValuesPropertyName, StringComparison.Ordinal))
             {
                 var propertiesType = _validationRuleDefinitionProvider.Get(ruleConfiguration.ValidationRuleIdentifier)?.ValidationRuleType;
-				JsonSerializerOptions options1 = new JsonSerializerOptions(options)
-				{
-					PropertyNameCaseInsensitive = true
-				};
+				if (propertiesType != null)
+                {
+                    JsonSerializerOptions options1 = new JsonSerializerOptions(options)
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
 
-				ruleConfiguration.RuleValues = (Kentico.Forms.Web.Mvc.ValidationRule)JsonSerializer.Deserialize(ref reader, propertiesType, options1);
+                    ruleConfiguration.RuleValues = (Kentico.Forms.Web.Mvc.ValidationRule)JsonSerializer.Deserialize(ref reader, propertiesType, options1);
+                }
             }
         }
 		throw new JsonException();
