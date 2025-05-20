@@ -76,8 +76,11 @@ internal sealed class ValidationRuleListComponent : Kentico.Xperience.Admin.Base
 
             var clientDefinition = new ValidationRuleClientDefinition
             {
-                CurrentFieldName = currentFieldName,
-                CurrentFieldTypeFullName = currentFieldTypeFullName,
+                Fields = new ValidationRuleClientDefinition.FieldDefinition()
+                {
+                    CurrentFieldName = currentFieldName,
+                    CurrentFieldTypeFullName = currentFieldTypeFullName,
+                },
                 Identifier = ruleDef.Identifier,
                 Name = _localizationService.LocalizeString(ruleDef.Name),
                 Description = _localizationService.LocalizeString(ruleDef.Description),
